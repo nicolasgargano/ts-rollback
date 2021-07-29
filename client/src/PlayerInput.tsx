@@ -1,5 +1,5 @@
 import React from "react"
-import { PlayerInput } from "./gamestate"
+import { PlayerInput } from "./data"
 
 export const PlayerInputPreview = (playerInput: PlayerInput) => (
   <div>

@@ -1,22 +1,17 @@
 import React, { useState } from "react"
-import {
-  defaultInputSettings,
-  FrameData,
-  gameStep,
-  initialGameState,
-  noPlayerInput,
-  slowGameSettings
-} from "./gamestate"
+import { FrameData, initialGameState, noPlayerInput } from "./data"
 import { useKeyDown } from "./hooks/useKeyDown"
 import { useInterval } from "./hooks/useInterval"
 import { PlayerInputPreview } from "./PlayerInput"
 import { GameStateDebug } from "./GameStateDebug"
 import { GameView } from "./GameView"
+import { defaultInputSettings, slowGameSettings } from "./settings"
+import { stepGame } from "./step"
 
 export const Game = () => {
   const [gameState, setGameState] = useState(initialGameState)
   const [gameSettings, setGameSettings] = useState(slowGameSettings)
-  const [inputSettings, setInputSettings] = useState(defaultInputSettings)
+  const [inputSettings] = useState(defaultInputSettings)
   const left = useKeyDown(inputSettings.left)
   const right = useKeyDown(inputSettings.right)
   const up = useKeyDown(inputSettings.up)
@@ -36,7 +31,7 @@ export const Game = () => {
       },
       twoInput: noPlayerInput
     }
-    setGameState(gm => gameStep(gameSettings)(frameData, gm))
+    setGameState(gm => stepGame(gameSettings)(frameData, gm))
   }, 1000 / gameSettings.stepRate)
 
   const StepRateConrol = () => (

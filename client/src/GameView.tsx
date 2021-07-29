@@ -1,5 +1,5 @@
 import React from "react"
-import { GameState } from "./gamestate"
+import { GameState } from "./data"
 
 export const GameView = (props: { gameState: GameState }) => (
   <div>
