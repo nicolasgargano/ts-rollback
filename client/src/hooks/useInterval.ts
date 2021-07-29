@@ -14,9 +14,6 @@ export const useInterval = (callback: (tick: number) => void, delay: number | un
   useEffect(() => {
     const tickFn = () => {
       if (savedCallback.current) savedCallback.current(tick)
-      // TODO: If there is no callback, should the tick really increase?
-      // In favor of yes: it means it only relies on time.
-      // In favor of no : your function did not get called.
       tick++
     }
     if (delay !== null) {
