@@ -37,11 +37,11 @@ export const Game = () => {
   const StepRateConrol = () => (
     <div style={{ display: "flex" }}>
       <button onClick={() => setGameSettings(gs => ({ ...gs, stepRate: gs.stepRate - 1 }))}>
-        slower
+        🚶
       </button>
       <p>Steps per second: {gameSettings.stepRate}</p>
       <button onClick={() => setGameSettings(gs => ({ ...gs, stepRate: gs.stepRate + 1 }))}>
-        faster
+        🏃
       </button>
     </div>
   )
