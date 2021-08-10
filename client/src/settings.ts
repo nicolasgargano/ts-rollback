@@ -1,16 +1,14 @@
 // -- GAME
 
 export type GameSettings = {
-  moveSpeed: number
-  stepRate: number
+  playerSpeed: number
+  maxVelocityChange: number
 }
 
 export const defaultGameSettings = {
-  moveSpeed: 3,
-  stepRate: 60
+  playerSpeed: 2,
+  maxVelocityChange: 1
 }
-
-export const slowGameSettings = { ...defaultGameSettings, stepRate: 1 }
 
 // -- INPUT
 

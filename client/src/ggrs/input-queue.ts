@@ -1,7 +1,6 @@
 import { Frame, NULL_FRAME, PlayerIndex } from "./lib"
 import { GameInput } from "./frame-info"
 import { array, nonEmptyArray } from "fp-ts"
-import { Game } from "../Game"
 import { assert } from "./assert"
 
 // The length of the input queue. This describes the number of inputs GGRS can hold at the same time per player.
