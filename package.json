@@ -15,6 +15,9 @@
   "author": "Nicolás Gargano",
   "license": "BSD-3-Clause",
   "dependencies": {
+    "@dimforge/rapier2d": "^0.7.0",
+    "@dimforge/rapier2d-compat": "^0.7.1",
+    "buffer": "^6.0.3",
     "express": "^4.17.1",
     "fp-ts": "^2.11.1",
     "peer": "^0.6.1",
