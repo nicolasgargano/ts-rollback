@@ -21,9 +21,9 @@ export type InputSettings = {
 }
 
 export const defaultInputSettings: InputSettings = {
-  left: "ArrowLeft",
-  right: "ArrowRight",
-  up: "ArrowUp",
-  down: "ArrowDown",
+  left: "a",
+  right: "d",
+  up: "w",
+  down: "s",
   jump: " "
 }
