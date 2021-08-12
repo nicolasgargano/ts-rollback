@@ -8,17 +8,12 @@ import { match } from "ts-adt"
 export const App = () => {
   const rapierStatus = useRapier()
 
-  return (
-    <div>
-      <Connection />
-      {pipe(
-        rapierStatus,
-        match({
-          loading: () => <div>Loading...</div>,
-          error: ({ msg }) => <div>Woops! {msg}</div>,
-          done: ({ rapier }) => <GameComponent rapier={rapier} />
-        })
-      )}
-    </div>
+  return pipe(
+    rapierStatus,
+    match({
+      loading: () => <div>Loading...</div>,
+      error: ({ msg }) => <div>Woops! {msg}</div>,
+      done: ({ rapier }) => <GameComponent rapier={rapier} />
+    })
   )
 }

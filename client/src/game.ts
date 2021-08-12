@@ -19,13 +19,20 @@ export const playerMovement = (
   gs: GameSettings,
   rb: RigidBody,
   { up, right, down, left, jump }: Input
-) => {}
+) => {
+  if (right) {
+    rb.applyForce({ x: 100, y: 0 }, true)
+  }
+  if (left) {
+    rb.applyForce({ x: -100, y: 0 }, true)
+  }
+}
 
 export const step =
   (gs: GameSettings, world: World, oneRb: RigidBody, twoRb: RigidBody) =>
   (oneIn: Input, twoIn: Input) => {
     playerMovement(gs, oneRb, oneIn)
-    playerMovement(gs, twoRb, twoIn)
+    // playerMovement(gs, twoRb, twoIn)
     world.step()
   }
 
@@ -38,10 +45,9 @@ const roundCuboidDimensions = {
 export const init: (rapier: Rapier) => [World, typeof step, RigidBody, RigidBody] = (
   rapier: Rapier
 ) => {
-  const playerColliderDesc = rapier.ColliderDesc.roundCuboid(
+  const playerColliderDesc = rapier.ColliderDesc.cuboid(
     roundCuboidDimensions.width,
-    roundCuboidDimensions.height,
-    roundCuboidDimensions.cornerRadius
+    roundCuboidDimensions.height
   )
 
   const world = new rapier.World({ x: 0.0, y: -9.81 })
@@ -55,7 +61,7 @@ export const init: (rapier: Rapier) => [World, typeof step, RigidBody, RigidBody
   world.createCollider(playerColliderDesc, two.handle)
 
   // Create the ground
-  let groundColliderDesc = rapier.ColliderDesc.cuboid(100.0, 0.25)
+  let groundColliderDesc = rapier.ColliderDesc.cuboid(20, 0.25)
   world.createCollider(groundColliderDesc)
 
   return [world, step, one, two]

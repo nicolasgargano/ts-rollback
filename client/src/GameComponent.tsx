@@ -4,8 +4,9 @@ import { useInterval } from "./hooks/useInterval"
 import { PlayerInputPreview } from "./PlayerInput"
 import { defaultGameSettings, defaultInputSettings } from "./settings"
 import * as game from "./game"
-import { GameView } from "./GameView"
+import { GameViewDebug } from "./GameViewDebug"
 import { Rapier } from "./hooks/useRapier"
+import { Canvas } from "@react-three/fiber"
 
 export const GameComponent = (props: { rapier: Rapier }) => {
   // TODO correct way of doing the render loop
@@ -33,10 +34,5 @@ export const GameComponent = (props: { rapier: Rapier }) => {
     forceRerender()
   }, 1000 / 60)
 
-  return (
-    <div>
-      <PlayerInputPreview left={left} right={right} up={up} down={down} jump={jump} />
-      <GameView game={gameRef.current} />
-    </div>
-  )
+  return <GameViewDebug game={gameRef.current} />
 }
