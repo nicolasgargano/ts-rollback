@@ -37,6 +37,8 @@ export const playerMovement = (
 
 export type GameState = {
   world: World
+  oneScore: number
+  twoScore: number
   one: RigidBody
   two: RigidBody
   castQueries: CastQuery[]
@@ -81,6 +83,15 @@ export const step = (settings: GameSettings, gs: GameState) => (oneIn: Input, tw
         const hitDistance = hit.toi
         rb.setLinvel({ x: 0, y: (hitDistance - playerDimensions.skinWidth) * -1 }, true)
         collisionsBelow = true
+
+        const otherPlayerColliderHandle = collider.handle === 0 ? 1 : 0
+        if (hit.colliderHandle === otherPlayerColliderHandle && hit.toi < 1) {
+          if (collider.handle === 0) gs.oneScore++
+          if (collider.handle === 1) gs.twoScore++
+
+          gs.one.setTranslation({ x: -10, y: 10 }, true)
+          gs.two.setTranslation({ x: 10, y: 10 }, true)
+        }
       }
       log("hit")([pos(), collider.halfExtents(), rayOrigin, hit])
       gs.castQueries.push({ _type: "raycast", ray, maxToi: raylength, maybeHit: hit })
@@ -124,13 +135,15 @@ export const init: (rapier: Rapier) => GameState = (rapier: Rapier) => {
   log("Two collider")(world.createCollider(playerColliderDesc, two.handle))
 
   // Create the ground
-  let groundColliderDesc = rapier.ColliderDesc.cuboid(20, 10)
+  let groundColliderDesc = rapier.ColliderDesc.cuboid(20, 2)
   log("Ground collider")(world.createCollider(groundColliderDesc))
 
   return {
     world: world,
     one: one,
+    oneScore: 0,
     two: two,
+    twoScore: 0,
     castQueries: new Array()
   }
 }

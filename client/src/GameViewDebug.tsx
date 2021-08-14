@@ -1,7 +1,7 @@
 import React, { useRef } from "react"
 import { Cuboid, RigidBody, ShapeType, World } from "@dimforge/rapier2d-compat"
 import { Canvas, useFrame, useThree } from "@react-three/fiber"
-import { OrbitControls, GizmoHelper, GizmoViewport, Line, Sphere, Box } from "@react-three/drei"
+import { OrbitControls, GizmoHelper, GizmoViewport, Line, Box, Text } from "@react-three/drei"
 import { log } from "./helpers"
 import { GameState } from "./game"
 import { pipe } from "fp-ts/function"
@@ -17,7 +17,11 @@ export const GameViewDebug = (props: { gamestate: GameState }) => {
   )
 }
 
-const DebugScene = ({ gamestate: { world, castQueries } }: { gamestate: GameState }) => {
+const DebugScene = ({
+  gamestate: { world, castQueries, oneScore, twoScore }
+}: {
+  gamestate: GameState
+}) => {
   const cuboidMeshes: JSX.Element[] = []
   const c: Cuboid = new Cuboid(1, 1)
 
@@ -119,6 +123,12 @@ const DebugScene = ({ gamestate: { world, castQueries } }: { gamestate: GameStat
         <sphereGeometry args={[1, 1, 1]} />
         <meshStandardMaterial color="orange" />
       </mesh>
+      <Text color="white" anchorX="center" anchorY="middle" fontSize={1} position={[-10, 10, 0]}>
+        {oneScore}
+      </Text>
+      <Text color="white" anchorX="center" anchorY="middle" fontSize={1} position={[10, 10, 0]}>
+        {twoScore}
+      </Text>
       {cuboidMeshes}
     </>
   )
