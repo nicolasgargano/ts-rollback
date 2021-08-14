@@ -6,7 +6,7 @@ export type GameSettings = {
 }
 
 export const defaultGameSettings = {
-  playerSpeed: 2,
+  playerSpeed: 10,
   maxVelocityChange: 1
 }
 

@@ -7,12 +7,16 @@ import * as game from "./game"
 import { GameViewDebug } from "./GameViewDebug"
 import { Rapier } from "./hooks/useRapier"
 import { Canvas } from "@react-three/fiber"
+import { Ray, RayColliderToi } from "@dimforge/rapier2d-compat"
 
 export const GameComponent = (props: { rapier: Rapier }) => {
   // TODO correct way of doing the render loop
   const [, forceRerender] = useReducer(x => x + 1, 0)
 
-  const gameRef = useRef(game.init(props.rapier))
+  const [gameRef] = useState(() => game.init(props.rapier))
+
+  const [pause, setPause] = useState(false)
+
   const gameSettings = defaultGameSettings
   const inputSettings = defaultInputSettings
 
@@ -23,16 +27,22 @@ export const GameComponent = (props: { rapier: Rapier }) => {
   const jump = useKeyDown(inputSettings.jump)
 
   useInterval(tick => {
-    const [world, step, oneRb, twoRb] = gameRef.current
-    step(
-      gameSettings,
-      world,
-      oneRb,
-      twoRb
-    )({ left, right, up, down, jump }, { left, right, up, down, jump })
+    if (pause) {
+      return
+    }
+    const gameState = gameRef
+    game.step(gameSettings, gameState)(
+      { left, right, up, down, jump },
+      { left, right, up, down, jump }
+    )
 
     forceRerender()
   }, 1000 / 60)
 
-  return <GameViewDebug game={gameRef.current} />
+  return (
+    <>
+      <button onClick={() => setPause(!pause)}>{pause ? "Play" : "Pause"}</button>
+      <GameViewDebug gamestate={gameRef} />
+    </>
+  )
 }
