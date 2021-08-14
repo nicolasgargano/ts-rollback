@@ -26,6 +26,12 @@ export const GameComponent = (props: { rapier: Rapier }) => {
   const down = useKeyDown(inputSettings.down)
   const jump = useKeyDown(inputSettings.jump)
 
+  const twoleft = useKeyDown("ArrowLeft")
+  const tworight = useKeyDown("ArrowRight")
+  const twoup = useKeyDown("ArrowUp")
+  const twodown = useKeyDown("ArrowDown")
+  const twojump = useKeyDown("ArrowUp")
+
   useInterval(tick => {
     if (pause) {
       return
@@ -33,7 +39,7 @@ export const GameComponent = (props: { rapier: Rapier }) => {
     const gameState = gameRef
     game.step(gameSettings, gameState)(
       { left, right, up, down, jump },
-      { left, right, up, down, jump }
+      { left: twoleft, right: tworight, up: twoup, down: twodown, jump: twojump }
     )
 
     forceRerender()
