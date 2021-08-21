@@ -4,10 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "prepare": "husky install",
     "start": "run-p start:*",
     "start:client": "vite client",
     "start:server": "ts-node-dev ./server/main.ts",
-    "prepare": "husky install",
+    "build:example:boxesgame": "vite build --config client/src/rollback/example/vite.config.ts",
+    "preview:example:boxesgame": "vite preview --config client/src/rollback/example/vite.config.ts",
     "example:boxesgame": "vite --config client/src/rollback/example/vite.config.ts",
     "example:consolegame": "ts-node ./client/src/ggrs/examples/console/console-game.ts",
     "example:consolegame-p2p-local": "vite --config client/src/ggrs/examples/console/p2p-local/vite.config.ts",
