@@ -66,7 +66,7 @@ export class InputQueue {
   }
 
   resetPrediction = (frame: Frame) => {
-    assert(this.firstIncorrectFrame === NULL_FRAME || frame < this.firstIncorrectFrame)
+    assert(this.firstIncorrectFrame === NULL_FRAME || frame <= this.firstIncorrectFrame)
 
     this.prediction.frame = NULL_FRAME
     this._firstIncorrectFrame = NULL_FRAME
@@ -156,7 +156,7 @@ export class InputQueue {
     // We must be predicting, so we return the prediction frame contents.
     // We are adjusting the prediction to have the requested frame.
     assert(this.prediction.frame !== NULL_FRAME)
-    const predictionToReturn = this.prediction
+    const predictionToReturn = GameInput.clone(this.prediction)
     predictionToReturn.frame = requestedFrame
     return predictionToReturn
   }
@@ -164,16 +164,26 @@ export class InputQueue {
   // Adds an input frame to the queue.
   // Will consider the set frame delay.
   addInputWithFrameDelay = (input: GameInput): Frame => {
-    // Verify that inputs are passed in sequentially by the user,
-    // regardless of frame delay.
     assert(
       this.lastAddedFrame === NULL_FRAME ||
-        input.frame + this.frameDelay === this.lastAddedFrame + 1
+        input.frame + this.frameDelay === this.lastAddedFrame + 1,
+      `Verify that inputs are passed in sequentially by the user, regardless of frame delay. 
+input.frame + this.frameDelay === this.lastAddedFrame + 1
+this.frameDelay = ${this.frameDelay}
+this.lastAddedFrame = ${this.lastAddedFrame}
+input.frame = ${input.frame}`
     )
 
     const newFrame = this.advanceQueueHead(input.frame)
+
     if (newFrame !== NULL_FRAME) {
+      if (this.id === 1) console.debug(`before add head: ${this.head}`)
       this.addInputByFrame(input, newFrame)
+      if (this.id === 1)
+        console.debug(
+          `[ queue (${this.id})] newFrame from advanceQueueHead(${input.frame}) ${this.id}: ${newFrame}, head: ${this.head}, after add:`,
+          this.inputs.slice(0, 11)
+        )
     }
     return newFrame
   }
@@ -191,14 +201,19 @@ export class InputQueue {
     assert(frame === 0 || this.inputs[previousPosition].frame === frame - 1)
 
     // Add the frame to the back of the queue
-    this.inputs[this.head] = input
+    this.inputs[this.head] = GameInput.clone(input)
     this.inputs[this.head].frame = frame
+    this.head = (this.head + 1) % INPUT_QUEUE_LENGTH
+    // if (this.id === 1) {
+    //   console.debug(`[queue] setting head = ${(this.head + 1) % INPUT_QUEUE_LENGTH}`)
+    // }
     this.head = (this.head + 1) % INPUT_QUEUE_LENGTH
     this.length += 1
 
     assert(this.length <= INPUT_QUEUE_LENGTH)
 
     this.firstFrame = false
+    // if (this.id === 1) console.debug(`[ queue (${this.id}) ] Setting lastAddedFrame to ${frame}`)
     this.lastAddedFrame = frame
 
     // We may have been predicting.
@@ -233,6 +248,11 @@ export class InputQueue {
 
     const inputFrameWithDelay = inputFrame + this.frameDelay
 
+    if (this.id == 1)
+      console.debug(
+        `[ queue (${this.id}) ] head: ${this.head}, inputs before adv q h ${inputFrame}:`,
+        this.inputs.slice(0, 11)
+      )
     //  This can occur when the frame delay has dropped since
     //    the last time we shoved a frame into the system.
     //  In this case, there's no room on the queue. Toss it.
@@ -255,6 +275,13 @@ export class InputQueue {
 
     assert(inputFrame === 0 || inputFrameWithDelay === this.inputs[previousPosition].frame + 1)
     assert(!isNaN(inputFrameWithDelay))
+
+    if (this.id == 1)
+      console.debug(
+        `[ queue (${this.id}) ] inputs after adv q h ${inputFrame}, head: ${this.head}, newFrame ${inputFrameWithDelay}:`,
+        this.inputs.slice(0, 11)
+      )
+
     return inputFrameWithDelay
   }
 }

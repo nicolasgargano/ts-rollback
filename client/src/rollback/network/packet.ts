@@ -1,15 +1,15 @@
-import { Frame, NULL_FRAME } from "../lib"
 import { ADT } from "ts-adt"
+import { Frame, NULL_FRAME } from "../types"
 
-export class ConnectionStatus {
+export type ConnectionStatus = {
   disconnected: boolean
   lastFrame: number
-
-  constructor(disconnected = false, lastFrame = NULL_FRAME) {
-    this.disconnected = disconnected
-    this.lastFrame = lastFrame
-  }
 }
+
+export const startingConnectionStatus = () => ({
+  disconnected: false,
+  lastFrame: NULL_FRAME
+})
 
 export type SyncRequest = {
   // please reply back with this random data
@@ -20,6 +20,7 @@ export type SyncResponse = {
   // here's your random data back
   randomResponse: number
 }
+
 export class Input {
   peerConnectionStatuses: Array<ConnectionStatus>
   disconnectRequested: boolean

@@ -5,3 +5,5 @@ export const assert = (expr: boolean, msg?: string) => {
     throw new Error(msg ? msg : "Assertion error")
   }
 }
+
+export const assertEqual

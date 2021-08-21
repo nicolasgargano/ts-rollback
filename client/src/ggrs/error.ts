@@ -20,7 +20,7 @@ export const errorToMsg = (error: GGRSError) =>
       predictionThreshold: () =>
         "Prediction threshold is reached, cannot proceed without catching up.",
       invalidRequest: ({ info }) => `Invalid request: ${info}`,
-      notSynchronized: () => "The session is not yet synchronized with all remote sessions.",
+      notSynchronized: () => "The session is not yet synchronized with all remote peerjs-session.",
       mismatchedChecksum: ({ frame }) =>
         `Detected checksum mismatch during rollback on frame ${frame}.`,
       socketCreationFailed: () => `UPD Socket creation failed.`,

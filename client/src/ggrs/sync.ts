@@ -10,7 +10,6 @@ import {
 } from "./lib"
 import { InputQueue } from "./input-queue"
 import { array, either, nonEmptyArray } from "fp-ts"
-import { Player } from "../data"
 import { Either } from "fp-ts/Either"
 import { GGRSError } from "./error"
 import { ConnectionStatus } from "./network/packet"

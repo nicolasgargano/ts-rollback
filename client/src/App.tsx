@@ -4,6 +4,7 @@ import { GameComponent } from "./GameComponent"
 import { useRapier, RapierStatus, Rapier } from "./hooks/useRapier"
 import { pipe } from "fp-ts/function"
 import { match } from "ts-adt"
+import { GameP2PComponent } from "./GameP2PComponent"
 
 export const App = () => {
   const rapierStatus = useRapier()
@@ -13,7 +14,7 @@ export const App = () => {
     match({
       loading: () => <div>Loading...</div>,
       error: ({ msg }) => <div>Woops! {msg}</div>,
-      done: ({ rapier }) => <GameComponent rapier={rapier} />
+      done: ({ rapier }) => <GameP2PComponent rapier={rapier} />
     })
   )
 }

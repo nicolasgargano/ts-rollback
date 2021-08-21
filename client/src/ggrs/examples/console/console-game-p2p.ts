@@ -19,28 +19,6 @@ export const initialGameModel: GameModel = {
   two: { x: 5 }
 }
 
-const onFrame =
-  (previous: GameModel) =>
-  (inputs: GameInput[]): GameModel => {
-    const gameModel = { ...previous }
-    const decodedInputs = inputs.map(decodeGameInput)
-
-    console.log(`Update frame ${gameModel.frame}`, decodedInputs)
-
-    let oneXVel = 0
-    if (decodedInputs[0].right) oneXVel++
-    if (decodedInputs[0].left) oneXVel--
-
-    let twoXVel = 0
-    if (decodedInputs[1].right) twoXVel++
-    if (decodedInputs[1].left) twoXVel--
-
-    gameModel.one.x += oneXVel
-    gameModel.two.x += twoXVel
-    gameModel.frame++
-    return gameModel
-  }
-
 const gameModelToStore = (gm: GameModel): Uint8Array => {
   return new TextEncoder().encode(JSON.stringify(gm))
 }
@@ -63,6 +41,28 @@ export const decodeGameInput = (gameInput: GameInput): ConsoleGameInput => {
     left: gameInput.buffer[1] === 1
   }
 }
+
+const onFrame =
+  (previous: GameModel) =>
+  (inputs: GameInput[]): GameModel => {
+    const gameModel = { ...previous }
+    const decodedInputs = inputs.map(decodeGameInput)
+
+    console.log(`Update frame ${gameModel.frame}`, decodedInputs)
+
+    let oneXVel = 0
+    if (decodedInputs[0].right) oneXVel++
+    if (decodedInputs[0].left) oneXVel--
+
+    let twoXVel = 0
+    if (decodedInputs[1].right) twoXVel++
+    if (decodedInputs[1].left) twoXVel--
+
+    gameModel.one.x += oneXVel
+    gameModel.two.x += twoXVel
+    gameModel.frame++
+    return gameModel
+  }
 
 export class ConsoleGame {
   model: GameModel

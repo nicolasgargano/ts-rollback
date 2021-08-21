@@ -11,7 +11,7 @@ import { PeerJsProtocol } from "./network/peerjs-protocol"
 // -- CONSTANTS
 
 export const MAX_PLAYERS = 4
-export const MAX_PREDICTION_FRAMES = 8
+export const MAX_PREDICTION_FRAMES = 16
 export const MAX_INPUT_BYTES = 8
 export const NULL_FRAME = -1
 

@@ -1,12 +1,18 @@
 import Peer, { DataConnection } from "peerjs"
-import { Message } from "./packet"
 import { assert } from "../assert"
+import { Message } from "./packet"
+
+type LogEntry = {
+  type: "sent" | "received"
+  msg: Message
+}
 
 export class PeerJsSocket {
   peer: Peer
   connections: { [peerId: string]: DataConnection }
   onMessage: (from: string, pkg: Message) => void
   sendCount: number
+  inputLog: LogEntry[] = new Array<LogEntry>()
 
   constructor(peer: Peer, onMessage: (from: string, msg: Message) => void) {
     this.peer = peer
@@ -43,16 +49,20 @@ export class PeerJsSocket {
         console.warn("[socket] Received invalid message", data)
         return
       }
-      console.debug(`[socket] Received ${message.body._type}`, message)
+      if (message.body._type === "input" || message.body._type === "inputAck")
+        this.inputLog.push({ type: "received", msg: message })
+      // console.debug(`[socket] Received ${message.body._type}`, message, this.inputLog)
       this.onMessage(conn.peer, message)
     })
   }
 
   sendTo = (peerId: string, message: Message) => {
-    assert(this.connections[peerId] !== undefined, `Connection does not exist ${peerId}`)
-    console.debug(`[socket] Sending ${message.body._type}`, message)
+    assert.defined(this.connections[peerId] !== undefined, `Connection does not exist ${peerId}`)
     message.header.sendCount = this.sendCount
     this.connections[peerId].send(message)
+    if (message.body._type === "input" || message.body._type === "inputAck")
+      this.inputLog.push({ type: "sent", msg: message })
+    // console.debug(`[socket] Sent ${message.body._type}`, message, this.inputLog)
     this.sendCount++
   }
 }

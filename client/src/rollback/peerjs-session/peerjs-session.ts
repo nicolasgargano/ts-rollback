@@ -1,80 +1,31 @@
+import { ConnectionStatus, startingConnectionStatus } from "../network/packet"
+import { player, Player } from "./player"
 import {
   Frame,
-  GGRSEvent,
-  GGRSRequest,
+  RBEvent,
+  RBRequest,
   NULL_FRAME,
   PlayerIndex,
   PlayerType,
   SessionState,
-  SPECTATOR_PLAYER_INDEX_FROM
-} from "../lib"
-import { ADT, match } from "ts-adt"
-import { pipe } from "fp-ts/function"
-import { either, nonEmptyArray, option } from "fp-ts"
-import { GameInput } from "../frame-info"
-import { SyncLayer } from "../sync"
-import { GGRSError } from "../error"
-import { Either } from "fp-ts/Either"
-import { ConnectionStatus } from "../network/packet"
+  RBError
+} from "../types"
 import { PeerJsSocket } from "../network/peerjs-socket"
-import { NetworkStats } from "../network/network-stats"
 import Peer from "peerjs"
+import { either, nonEmptyArray, option } from "fp-ts"
+import { AllSettings, defaults } from "../defaults"
+import { Duration, PeerJsProtocol } from "../network/PeerJsProtocol"
+import { SyncLayer } from "../sync/SyncLayer"
+import { Either } from "fp-ts/Either"
+import { pipe } from "fp-ts/function"
+import { match } from "ts-adt"
+import { gameInput, SerializedGameInput } from "../SerializedGameInput"
 import { assert } from "../assert"
-import { Duration, PeerJsProtocol } from "../network/peerjs-protocol"
-import { Option } from "fp-ts/Option"
-import { player } from "../../rollback/peerjs-session/player"
-
-export const RECOMMENDATION_INTERVAL: Frame = 40
-export const MAX_EVENT_QUEUE_SIZE: number = 100
-export const DEFAULT_DISCONNECT_TIMEOUT_MILLISECONDS = 2000
-export const DEFAULT_DISCONNECT_NOTIFY_START_MILLISECONDS = 500
-
-export type Player = ADT<{
-  local: {}
-  remote: { conn: PeerJsProtocol }
-  spectator: { conn: PeerJsProtocol }
-}>
-
-const playerAsProtocol = (player: Player): Option<PeerJsProtocol> =>
-  pipe(
-    player,
-    match({
-      local: () => option.none,
-      remote: ({ conn }) => option.some(conn),
-      spectator: ({ conn }) => option.some(conn)
-    })
-  )
-
-const remoteProtocol = (player: Player): Option<PeerJsProtocol> =>
-  pipe(
-    player,
-    match({
-      local: () => option.none,
-      remote: ({ conn }) => option.some(conn),
-      spectator: ({ conn }) => option.none
-    })
-  )
-
-const spectatorProtocol = (player: Player): Option<PeerJsProtocol> =>
-  pipe(
-    player,
-    match({
-      local: () => option.none,
-      remote: ({ conn }) => option.none,
-      spectator: ({ conn }) => option.some(conn)
-    })
-  )
-export type PeerJsSessionEvent = ADT<{
-  synchronizing: { total: number; count: number }
-  synchronized: {}
-  input: { gameInput: GameInput }
-  disconnected: {}
-  networkInterrupted: { disconnectTimeout: number }
-  networkResumed: {}
-}>
+import { PeerJsSessionEvent } from "./peer-js-session-event"
+import { NetworkStats } from "../network/network-stats"
 
 export class PeerJsSession {
-  numPlayers: number
+  targetNumPlayers: number
   inputSize: number
   syncLayer: SyncLayer
 
@@ -91,23 +42,26 @@ export class PeerJsSession {
   nextSpectatorFrame: Frame
   nextRecommendedSleep: Frame
 
-  eventQueue: Array<GGRSEvent>
+  eventQueue: Array<RBEvent>
+
+  settings: AllSettings
 
   constructor(numPlayers: number, inputSize: number, peer: Peer) {
+    this.settings = defaults
     const localConnectionStatus = nonEmptyArray
       .range(0, numPlayers - 1)
-      .map(_ => new ConnectionStatus())
+      .map(_ => startingConnectionStatus())
 
-    this.numPlayers = numPlayers
+    this.targetNumPlayers = numPlayers
     this.inputSize = inputSize
-    this.syncLayer = new SyncLayer(numPlayers, inputSize)
-    this.disconnectTimeout = DEFAULT_DISCONNECT_TIMEOUT_MILLISECONDS
-    this.disconnectNotifyStart = DEFAULT_DISCONNECT_NOTIFY_START_MILLISECONDS
+    this.syncLayer = new SyncLayer(this.settings, numPlayers, inputSize)
+    this.disconnectTimeout = this.settings.net.DEFAULT_DISCONNECT_TIMEOUT_MILLISECONDS
+    this.disconnectNotifyStart = this.settings.net.DEFAULT_DISCONNECT_NOTIFY_START_MILLISECONDS
     this.disconnectFrame = NULL_FRAME
     this.state = SessionState.Initializing
     this.socket = new PeerJsSocket(peer, (from, msg) => {
       const protocols: PeerJsProtocol[] = Array.from(this.players.values())
-        .map(playerAsProtocol)
+        .map(player.asConnection)
         .filter(option.isSome)
         .map(a => a.value)
       const fromProtocol = protocols.find(e => e.remotePeerId === from)
@@ -137,13 +91,10 @@ export class PeerJsSession {
   /// - Returns `InvalidRequest` if a player with that handle has been added before
   /// - Returns `InvalidRequest` if the session has already been started
   /// - Returns `InvalidRequest` when adding more than one local player
-  addPlayer = (
-    playerType: PlayerType,
-    playerHandle: PlayerIndex
-  ): Either<GGRSError, PlayerIndex> => {
+  addPlayer = (playerType: PlayerType, playerHandle: PlayerIndex): Either<RBError, PlayerIndex> => {
     // currently, you can only add players in the init phase
     if (this.state !== SessionState.Initializing) {
-      return either.left<GGRSError, PlayerIndex>({
+      return either.left<RBError, PlayerIndex>({
         _type: "invalidRequest",
         info: "Session already started. You can only add players before starting the session."
       })
@@ -163,14 +114,14 @@ export class PeerJsSession {
   // After you are done defining and adding all players, you should start the session. Then, the synchronization process will begin.
   // # Errors
   // - Returns `InvalidRequest` if the session has already been started or if insufficient players have been registered.
-  startSession = (): Either<GGRSError, null> => {
+  startSession = (): Either<RBError, null> => {
     // if we are not in the initialization state, we already started the session at some point
     if (this.state !== SessionState.Initializing) {
       return either.left({ _type: "invalidRequest", info: "Session already started." })
     } else if (
       // check if all players are added
       nonEmptyArray
-        .range(0, this.numPlayers - 1)
+        .range(0, this.targetNumPlayers - 1)
         .some(playerIndex => this.players.get(playerIndex) === undefined)
     ) {
       return either.left({
@@ -182,7 +133,7 @@ export class PeerJsSession {
       this.state = SessionState.Synchronizing
       for (const p of this.players.values()) {
         pipe(
-          playerAsProtocol(p),
+          player.asConnection(p),
           option.fold(
             () => {},
             c => c.synchronize()
@@ -196,18 +147,18 @@ export class PeerJsSession {
   /// Disconnects a remote player from a game.
   /// # Errors
   /// - Returns `InvalidRequest` if you try to disconnect a player who has already been disconnected or if you try to disconnect a local player.
-  disconnectPlayer = (playerIndex: PlayerIndex): Either<GGRSError, null> => {
+  disconnectPlayer = (playerIndex: PlayerIndex): Either<RBError, null> => {
     const maybePlayer = option.fromNullable(this.players.get(playerIndex))
     return pipe(
       maybePlayer,
       option.fold(
-        () => either.left<GGRSError, null>({ _type: "invalidRequest", info: "" }),
+        () => either.left<RBError, null>({ _type: "invalidRequest", info: "" }),
         p =>
           pipe(
             p,
             match({
               local: () =>
-                either.left<GGRSError, null>({
+                either.left<RBError, null>({
                   _type: "invalidRequest",
                   info: "Local Player cannot be disconnected."
                 }),
@@ -218,7 +169,7 @@ export class PeerJsSession {
                   this.disconnectPlayerAtFrame(playerIndex, lastFrame)
                   return either.right(null)
                 } else {
-                  return either.left<GGRSError, null>({ _type: "playerDisconnected" })
+                  return either.left<RBError, null>({ _type: "playerDisconnected" })
                 }
               },
               // disconnecting spectators is simpler
@@ -242,13 +193,13 @@ export class PeerJsSession {
   /// - Returns `NotSynchronized` if the session is not yet ready to accept input. In this case, you either need to start the session or wait for synchronization between clients.
   advanceFrame = (
     localPlayerIndex: PlayerIndex,
-    localInput: Uint8Array
-  ): Either<GGRSError, GGRSRequest[]> => {
+    localInputBuffer: Uint8Array
+  ): Either<RBError, RBRequest[]> => {
     // receive info from remote players, trigger events and send messages
     this.pollRemoteClients()
 
     // player handle is invalid
-    if (localPlayerIndex > this.numPlayers) {
+    if (localPlayerIndex > this.targetNumPlayers) {
       return either.left({ _type: "invalidHandle" })
     }
 
@@ -262,7 +213,7 @@ export class PeerJsSession {
       return either.left({ _type: "notSynchronized" })
     }
 
-    const requests: GGRSRequest[] = []
+    const requests: RBRequest[] = []
 
     // check game consistency and rollback, if necessary
     pipe(
@@ -289,37 +240,46 @@ export class PeerJsSession {
     if (this.syncLayer.currentFrame > this.nextRecommendedSleep) {
       const skipFrames = this.maxDelayRecommendation(true)
       if (skipFrames > 0) {
-        this.nextRecommendedSleep = this.syncLayer.currentFrame + RECOMMENDATION_INTERVAL
+        this.nextRecommendedSleep =
+          this.syncLayer.currentFrame + this.settings.net.RECOMMENDATION_INTERVAL
         this.eventQueue.push({ _type: "waitRecommendation", skipFrames: skipFrames })
       }
     }
 
     // create an input struct for current frame
-    const gameInput = new GameInput(this.syncLayer.currentFrame, this.inputSize)
-    gameInput.copyInput(localInput)
+    const input = new SerializedGameInput(
+      this.syncLayer.currentFrame,
+      this.inputSize,
+      gameInput.defaultForSettings(this.settings).buffer
+    )
+    input.copyIntoBuffer(localInputBuffer)
 
     // send the input into the sync layer
-    const actualFrameEither = this.syncLayer.addLocalInput(localPlayerIndex, gameInput)
+    const actualFrameEither = this.syncLayer.addLocalInput(this.settings)(
+      this.settings.FRAME_DELAY,
+      localPlayerIndex,
+      input
+    )
 
     const ret = pipe(
       actualFrameEither,
       either.fold(
-        err => either.left(err),
+        err => either.left<RBError, RBRequest[]>(err),
         actualFrame => {
           // if the actual frame is the null frame, the frame has been dropped by the input queues (for example due to changed input delay)
           if (actualFrame !== NULL_FRAME) {
             // if not dropped, send the input to all other clients, but with the correct frame (influenced by input delay)
-            gameInput.frame = actualFrame
+            input.frame = actualFrame
             this.localConnectionStatus[localPlayerIndex].lastFrame = actualFrame
 
             for (const p of this.players.values()) {
               pipe(
-                remoteProtocol(p),
+                player.remoteAsConnection(p),
                 option.fold(
                   () => {},
                   e => {
                     // send the input directly
-                    e.sendInput(gameInput, this.localConnectionStatus)
+                    e.sendInput(input, this.localConnectionStatus)
                     e.sendAllMessages(this.socket)
                   }
                 )
@@ -334,14 +294,14 @@ export class PeerJsSession {
 
           // check if input is correct or represents a disconnected player (by NULL_FRAME)
           inputs.forEach(i =>
-            assert(i.frame === NULL_FRAME || i.frame === this.syncLayer.currentFrame)
+            assert.truthy(i.frame === NULL_FRAME || i.frame === this.syncLayer.currentFrame)
           )
 
           // advance the frame
           this.syncLayer.advanceFrame()
-          requests.push({ _type: "advanceFrame", inputs: inputs })
+          requests.push({ _type: "advanceFrame", inputs: inputs } as unknown as RBRequest)
 
-          return either.right<GGRSError, GGRSRequest[]>(requests)
+          return either.right<RBError, RBRequest[]>(requests)
         }
       )
     )
@@ -356,7 +316,7 @@ export class PeerJsSession {
     // update frame information between remote players
     for (const p of this.players.values()) {
       pipe(
-        remoteProtocol(p),
+        player.remoteAsConnection(p),
         option.fold(
           () => {},
           endpoint => {
@@ -372,12 +332,12 @@ export class PeerJsSession {
     const events: Array<[PeerJsSessionEvent, PlayerIndex]> = []
     for (const p of this.players.values()) {
       pipe(
-        playerAsProtocol(p),
+        player.asConnection(p),
         option.fold(
           () => {},
           endpoint => {
-            endpoint.poll(this.localConnectionStatus).forEach(ev => {
-              events.push([ev, endpoint.remotePlayerIndex])
+            endpoint.loop(this.localConnectionStatus).forEach(ev => {
+              events.push([ev, endpoint.playerIndex])
             })
           }
         )
@@ -390,7 +350,7 @@ export class PeerJsSession {
 
     for (const p of this.players.values()) {
       pipe(
-        playerAsProtocol(p),
+        player.asConnection(p),
         option.fold(
           () => {},
           endpoint => {
@@ -405,76 +365,38 @@ export class PeerJsSession {
   /// # Errors
   /// - Returns `InvalidHandle` if the provided player handle does not refer to an existing remote player.
   /// - Returns `NotSynchronized` if the session is not connected to other clients yet.
-  networkStats = (playerIndex: PlayerIndex): Either<GGRSError, NetworkStats> => {
+  networkStats = (playerIndex: PlayerIndex): Either<RBError, NetworkStats> => {
     // player handle is invalid
-    if (playerIndex > this.numPlayers) {
+    if (playerIndex > this.targetNumPlayers) {
       return either.left({ _type: "invalidHandle" })
     }
 
     return pipe(
       option.fromNullable(this.players.get(playerIndex)),
       option.fold(
-        () => either.left<GGRSError, NetworkStats>({ _type: "invalidHandle" }),
+        () => either.left<RBError, NetworkStats>({ _type: "invalidHandle" }),
         p =>
           pipe(
             p,
             match({
               local: () =>
-                either.left<GGRSError, NetworkStats>({ _type: "invalidRequest", info: "TODO" }),
+                either.left<RBError, NetworkStats>({ _type: "invalidRequest", info: "TODO" }),
               remote: ({ conn }) =>
                 pipe(
                   conn.networkStats(),
                   option.fold(
-                    () => either.left<GGRSError, NetworkStats>({ _type: "notSynchronized" }),
-                    stats => either.right<GGRSError, NetworkStats>(stats)
+                    () => either.left<RBError, NetworkStats>({ _type: "notSynchronized" }),
+                    stats => either.right<RBError, NetworkStats>(stats)
                   )
                 ),
               spectator: ({ conn }) =>
                 pipe(
                   conn.networkStats(),
                   option.fold(
-                    () => either.left<GGRSError, NetworkStats>({ _type: "notSynchronized" }),
-                    stats => either.right<GGRSError, NetworkStats>(stats)
+                    () => either.left<RBError, NetworkStats>({ _type: "notSynchronized" }),
+                    stats => either.right<RBError, NetworkStats>(stats)
                   )
                 )
-            })
-          )
-      )
-    )
-  }
-
-  /// Change the amount of frames GGRS will delay the inputs for a player. You should only set the frame delay for local players.
-  /// # Errors
-  /// - Returns `InvalidHandle` if the provided player handle is invalid.
-  /// - Returns `InvalidRequest` if the provided player handle does not refer to a local player.
-  setFrameDelay = (frameDelay: number, playerIndex: PlayerIndex): Either<GGRSError, null> => {
-    // player handle is invalid
-    if (playerIndex > this.numPlayers) {
-      return either.left({ _type: "invalidHandle" })
-    }
-
-    return pipe(
-      option.fromNullable(this.players.get(playerIndex)),
-      option.fold(
-        () => either.left({ _type: "invalidHandle" }),
-        p =>
-          pipe(
-            p,
-            match({
-              local: () => {
-                this.syncLayer.setFrameDelay(playerIndex, frameDelay)
-                return either.right<GGRSError, null>(null)
-              },
-              remote: _ =>
-                either.left<GGRSError, null>({
-                  _type: "invalidRequest",
-                  info: "Frame delay can only be set for the local player."
-                }),
-              spectator: _ =>
-                either.left<GGRSError, null>({
-                  _type: "invalidRequest",
-                  info: "Frame delay can only be set for the local player."
-                })
             })
           )
       )
@@ -485,7 +407,7 @@ export class PeerJsSession {
   setDisconnectTimeout = (timeout: Duration) => {
     for (const p of this.players.values()) {
       pipe(
-        playerAsProtocol(p),
+        player.asConnection(p),
         option.fold(
           () => {},
           e => {
@@ -500,7 +422,7 @@ export class PeerJsSession {
   setDisconnectNotifyDelay = (notifyDelay: Duration) => {
     for (const p of this.players.values()) {
       pipe(
-        playerAsProtocol(p),
+        player.asConnection(p),
         option.fold(
           () => {},
           e => {
@@ -521,9 +443,9 @@ export class PeerJsSession {
     return ret
   }
 
-  addLocalPlayer = (playerIndex: PlayerIndex): Either<GGRSError, PlayerIndex> => {
+  addLocalPlayer = (playerIndex: PlayerIndex): Either<RBError, PlayerIndex> => {
     // check if valid player
-    if (playerIndex >= this.numPlayers) {
+    if (playerIndex >= this.targetNumPlayers) {
       return either.left({ _type: "invalidHandle" })
     }
 
@@ -554,9 +476,9 @@ export class PeerJsSession {
     return either.right(playerIndex)
   }
 
-  addRemotePlayer = (playerIndex: PlayerIndex, peerId: string): Either<GGRSError, PlayerIndex> => {
+  addRemotePlayer = (playerIndex: PlayerIndex, peerId: string): Either<RBError, PlayerIndex> => {
     // check if valid player
-    if (playerIndex >= this.numPlayers) {
+    if (playerIndex >= this.targetNumPlayers) {
       return either.left({ _type: "invalidHandle" })
     }
 
@@ -570,22 +492,19 @@ export class PeerJsSession {
       peerId,
       playerIndex,
       this.socket,
-      this.numPlayers,
+      this.targetNumPlayers,
       this.inputSize
     )
     endpoint.setDisconnectNotifyStart(this.disconnectNotifyStart)
     endpoint.setDisconnectTimeout(this.disconnectTimeout)
-
-    // if the input delay has been set previously, erase it (remote players handle input delay at their end)
-    this.syncLayer.setFrameDelay(playerIndex, 0)
 
     // add the remote player
     this.players.set(playerIndex, { _type: "remote", conn: endpoint })
     return either.right(playerIndex)
   }
 
-  addSpectator = (playerIndex: PlayerIndex, peerId: string): Either<GGRSError, PlayerIndex> => {
-    const spectatorIndex = playerIndex + SPECTATOR_PLAYER_INDEX_FROM
+  addSpectator = (playerIndex: PlayerIndex, peerId: string): Either<RBError, PlayerIndex> => {
+    const spectatorIndex = playerIndex + this.settings.SPECTATOR_INDEX_FROM
 
     // check if player handle already exists
     if (this.players.has(spectatorIndex)) {
@@ -593,18 +512,18 @@ export class PeerJsSession {
     }
 
     // create a peerjs protocol endpoint that handles all the messaging to that remote spectator
-    const endpoint = new PeerJsProtocol(
+    const protocol: PeerJsProtocol = new PeerJsProtocol(
       peerId,
       spectatorIndex,
       this.socket,
-      this.numPlayers,
+      this.targetNumPlayers,
       this.inputSize
     )
-    endpoint.setDisconnectNotifyStart(this.disconnectNotifyStart)
-    endpoint.setDisconnectTimeout(this.disconnectTimeout)
+    protocol.setDisconnectNotifyStart(this.disconnectNotifyStart)
+    protocol.setDisconnectTimeout(this.disconnectTimeout)
 
     // add the spectator
-    this.players.set(spectatorIndex, { _type: "spectator", conn: endpoint })
+    this.players.set(spectatorIndex, { _type: "spectator", conn: protocol })
     return either.right(spectatorIndex)
   }
 
@@ -655,7 +574,7 @@ export class PeerJsSession {
     // if any remote player is not synchronized, we continue synchronizing
     for (const p of this.players.values()) {
       pipe(
-        playerAsProtocol(p),
+        player.asConnection(p),
         option.fold(
           () => {},
           endpoint => {
@@ -672,14 +591,14 @@ export class PeerJsSession {
   }
 
   /// Roll back to `first_incorrect` frame and resimulate the game with most up-to-date input data.
-  adjustGamestate = (firstIncorrect: Frame, requests: GGRSRequest[]) => {
+  adjustGamestate = (firstIncorrect: Frame, requests: RBRequest[]) => {
     const currentFrame = this.syncLayer.currentFrame
     const count = currentFrame - firstIncorrect
 
     // rollback to the first incorrect state
-    requests.push(this.syncLayer.loadFrame(firstIncorrect))
+    requests.push(this.syncLayer.loadFrame(this.settings)(firstIncorrect))
     this.syncLayer.resetPrediction(firstIncorrect)
-    assert(this.syncLayer.currentFrame === firstIncorrect)
+    assert.primitiveEqual(this.syncLayer.currentFrame, firstIncorrect)
 
     // step forward to the previous current state
     for (let i = 0; i < count; i++) {
@@ -690,10 +609,10 @@ export class PeerJsSession {
       }
 
       this.syncLayer.advanceFrame()
-      requests.push({ _type: "advanceFrame", inputs: inputs })
+      requests.push({ _type: "advanceFrame", inputs: inputs } as unknown as RBRequest)
     }
 
-    assert(this.syncLayer.currentFrame === currentFrame)
+    assert.primitiveEqual(this.syncLayer.currentFrame, currentFrame)
   }
 
   /// For each spectator, send all confirmed input up until the minimum confirmed frame.
@@ -707,26 +626,27 @@ export class PeerJsSession {
         this.nextSpectatorFrame,
         this.localConnectionStatus
       )
-      assert(inputs.length === this.numPlayers)
+      assert.primitiveEqual(inputs.length, this.targetNumPlayers)
 
       // construct a pseudo input containing input of all players for the spectators
-      const spectatorInput = new GameInput(
+      const spectatorInput = new SerializedGameInput(
         this.nextSpectatorFrame,
-        this.inputSize * this.numPlayers
+        this.inputSize * this.targetNumPlayers,
+        gameInput.defaultForSettings(this.settings).buffer
       )
 
       inputs.forEach((input, i) => {
-        assert(input.frame === NULL_FRAME || input.frame === this.nextSpectatorFrame)
-        assert(input.frame === NULL_FRAME || input.size === this.inputSize)
-        const start = i * input.size
-        const end = (i + 1) * input.size
-        spectatorInput.buffer.set(input.input(), start)
+        assert.truthy(input.frame === NULL_FRAME || input.frame === this.nextSpectatorFrame)
+        assert.truthy(input.frame === NULL_FRAME || input.inputSize === this.inputSize)
+        const start = i * input.inputSize
+        const end = (i + 1) * input.inputSize
+        spectatorInput.buffer.set(input.buffer, start)
       })
 
       // send it off
       for (const p of this.players.values()) {
         pipe(
-          spectatorProtocol(p),
+          player.spectatorAsConnection(p),
           option.fold(
             () => {},
             endpoint => {
@@ -748,14 +668,14 @@ export class PeerJsSession {
   minConfirmedFrame = (): Frame => {
     let totalMinConfirmed = Number.MAX_SAFE_INTEGER
 
-    for (let playerIndex = 0; playerIndex < this.numPlayers; playerIndex++) {
+    for (let playerIndex = 0; playerIndex < this.targetNumPlayers; playerIndex++) {
       let queueConnected = true
       let queueMinConfirmed = Number.MAX_SAFE_INTEGER
 
       // check all remote players for that player
       for (const p of this.players.values()) {
         pipe(
-          playerAsProtocol(p),
+          player.remoteAsConnection(p),
           option.fold(
             () => {},
             endpoint => {
@@ -792,7 +712,7 @@ export class PeerJsSession {
       }
     }
 
-    assert(totalMinConfirmed < Number.MAX_SAFE_INTEGER)
+    assert.truthy(totalMinConfirmed < Number.MAX_SAFE_INTEGER)
     return totalMinConfirmed
   }
 
@@ -801,7 +721,7 @@ export class PeerJsSession {
     let interval = 0
     for (const [playerIndex, p] of this.players.entries()) {
       pipe(
-        remoteProtocol(p),
+        player.remoteAsConnection(p),
         option.fold(
           () => {},
           endpoint => {
@@ -845,7 +765,7 @@ export class PeerJsSession {
         disconnected: () => {
           // for remote players
           const lastFrame =
-            playerIndex < this.numPlayers
+            playerIndex < this.targetNumPlayers
               ? this.localConnectionStatus[playerIndex].lastFrame
               : NULL_FRAME
 
@@ -853,32 +773,34 @@ export class PeerJsSession {
           this.eventQueue.push({ _type: "disconnected", playerHandle: playerIndex })
         },
         // add the input and all associated information
-        input: ({ gameInput }) => {
+        input: ({ input }) => {
           // input only comes from remote players, not spectators
-          assert(playerIndex < this.numPlayers)
+          assert.truthy(playerIndex < this.targetNumPlayers)
           if (!this.localConnectionStatus[playerIndex].disconnected) {
             // check if the input comes in the correct sequence
             const currentRemoteFrame = this.localConnectionStatus[playerIndex].lastFrame
-            assert(currentRemoteFrame === NULL_FRAME || currentRemoteFrame + 1 === gameInput.frame)
-            // update our info
-            console.debug(
-              `[update last frame] current: ${currentRemoteFrame}, new: ${gameInput.frame}`
+            assert.truthy(
+              currentRemoteFrame === NULL_FRAME || currentRemoteFrame + 1 === input.frame
             )
-            this.localConnectionStatus[playerIndex].lastFrame = gameInput.frame
+            // update our info
+            console.debug(`[update last frame] current: ${currentRemoteFrame}, new: ${input.frame}`)
+            this.localConnectionStatus[playerIndex].lastFrame = input.frame
             // add the remote input
-            this.syncLayer.addRemoteInput(playerIndex, gameInput)
+            this.syncLayer.addRemoteInput(0, playerIndex, input)
           }
         }
       })
     )
 
     // check event queue size and discard oldest events if too big
-    while (this.eventQueue.length > MAX_EVENT_QUEUE_SIZE) {
+    while (this.eventQueue.length > this.settings.net.MAX_EVENT_QUEUE_SIZE) {
       this.eventQueue.shift()
     }
   }
 
   /// Return the number of spectators currently registered
   numSpectators = () =>
-    Array.from(this.players.values()).filter(p => pipe(spectatorProtocol(p), option.isSome)).length
+    Array.from(this.players.values()).filter(p =>
+      pipe(player.spectatorAsConnection(p), option.isSome)
+    ).length
 }

@@ -1,7 +1,6 @@
 import React, { useEffect, useReducer, useState } from "react"
 import Peer, { DataConnection } from "peerjs"
 import { ConsoleGame, initialGameModel } from "../../console-game-p2p"
-import { initialGameState } from "../../../../../data"
 import { ConsoleGameWindow } from "./ConsoleGameWindow"
 import { GameInput } from "../../../../frame-info"
 import { useInterval } from "../../../../../hooks/useInterval"

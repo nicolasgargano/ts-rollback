@@ -31,7 +31,7 @@ export class GameState {
 // -- GAME INPUT
 
 // Represents a serialized input for a single player in a single frame. This struct holds a `buffer` where the first `size` bytes represent the encoded input of a single player.
-// The associated frame is denoted with `frame`. You do not need to create this struct, but the sessions will provide a `Vec<GameInput>` for you during `advance_frame()`.
+// The associated frame is denoted with `frame`. You do not need to create this struct, but the peerjs-session will provide a `Vec<GameInput>` for you during `advance_frame()`.
 export class GameInput {
   // The frame to which this info belongs to. -1/`NULL_FRAME` represents an invalid frame
   frame: Frame
@@ -47,9 +47,12 @@ export class GameInput {
   }
 
   copyInput = (bytes: Uint8Array) => {
-    assert(bytes.length === this.size, "[GameInput:copyInput] input lengths don't match")
+    assert(
+      bytes.length === this.size,
+      `[GameInput:copyInput] input lengths don't match, bytes.length = ${bytes.length}, this.size = ${this.size}`
+    )
 
-    this.buffer = this.buffer.slice(0, 2)
+    this.buffer = this.buffer.slice(0, bytes.length)
     for (let i = 0; i < bytes.length; i++) {
       this.buffer[i] = bytes[i]
     }
