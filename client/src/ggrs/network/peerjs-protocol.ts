@@ -117,7 +117,7 @@ export class PeerJsProtocol {
     this.sendQueue = []
     this.eventQueue = []
 
-    const now = new Date().getTime()
+    const now = performance.now()
 
     // state
     this.state = ProtocolState.Initializing
@@ -185,7 +185,7 @@ export class PeerJsProtocol {
       return option.none
     }
 
-    const now = new Date().getTime()
+    const now = performance.now()
     const totalBytesSent = this.bytesSent + this.packetsSent * UDP_HEADER_SIZE
     const seconds = (now - this.statsStartTime) / 1000
     const bps = totalBytesSent / seconds
