@@ -256,7 +256,7 @@ export class PeerJsProtocol {
         // resend pending inputs, if some time has passed without sending or receiving inputs
         if (this.runningLastInputReceived + this.settings.net.RUNNING_RETRY_INTERVAL < now) {
           this.sendPendingOutput(connectionStatuses)
-          this.runningLastInputReceived = performance.now()
+          this.runningLastInputReceived = now
         }
 
         // periodically send a quality report
