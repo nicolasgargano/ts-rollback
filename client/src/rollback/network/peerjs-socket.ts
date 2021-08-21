@@ -12,7 +12,6 @@ export class PeerJsSocket {
   connections: { [peerId: string]: DataConnection }
   onMessage: (from: string, pkg: Message) => void
   sendCount: number
-  inputLog: LogEntry[] = new Array<LogEntry>()
 
   constructor(peer: Peer, onMessage: (from: string, msg: Message) => void) {
     this.peer = peer
@@ -49,8 +48,6 @@ export class PeerJsSocket {
         console.warn("[socket] Received invalid message", data)
         return
       }
-      if (message.body._type === "input" || message.body._type === "inputAck")
-        this.inputLog.push({ type: "received", msg: message })
       // console.debug(`[socket] Received ${message.body._type}`, message, this.inputLog)
       this.onMessage(conn.peer, message)
     })
@@ -60,8 +57,6 @@ export class PeerJsSocket {
     assert.defined(this.connections[peerId] !== undefined, `Connection does not exist ${peerId}`)
     message.header.sendCount = this.sendCount
     this.connections[peerId].send(message)
-    if (message.body._type === "input" || message.body._type === "inputAck")
-      this.inputLog.push({ type: "sent", msg: message })
     // console.debug(`[socket] Sent ${message.body._type}`, message, this.inputLog)
     this.sendCount++
   }
