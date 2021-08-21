@@ -72,7 +72,14 @@ export const App = () => {
 // -- GAME
 
 const createGame = (peer: Peer, remotePeerId: string, localPlayerNumber: number) =>
-  new BoxesPeerJsGame(peer, remotePeerId, initialGameState, defaultGameSettings, localPlayerNumber)
+  new BoxesPeerJsGame(
+    peer,
+    remotePeerId,
+    initialGameState,
+    defaultGameSettings,
+    localPlayerNumber,
+    0
+  )
 
 // -- PEERJS
 

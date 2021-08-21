@@ -45,18 +45,21 @@ export class BoxesPeerJsGame {
   gamestate: GameState
   peerJsSession: PeerJsSession
   localPlayerIndex: number
+  framesToSkip: number
 
   constructor(
     peer: Peer,
     peerId: string,
     gamestate: GameState,
     settings: GameSettings,
-    localPlayerNumber: number
+    localPlayerNumber: number,
+    framesToSkip: number
   ) {
     this.gamestate = gamestate
     this.settings = settings
     this.peerJsSession = new PeerJsSession(2, INPUT_LENGTH, peer)
     this.localPlayerIndex = localPlayerNumber - 1
+    this.framesToSkip = framesToSkip
 
     pipe(
       either.Do,
@@ -74,6 +77,17 @@ export class BoxesPeerJsGame {
   onStep = (input: Input) => {
     if (this.peerJsSession.currentState() == SessionState.Synchronizing) {
       this.peerJsSession.pollRemoteClients()
+
+      const events = this.peerJsSession.drainEvents()
+      for (const ev of events) {
+        if (ev._type === "waitRecommendation") this.framesToSkip = this.framesToSkip + ev.skipFrames
+      }
+    }
+
+    if (this.framesToSkip > 0) {
+      this.framesToSkip--
+      console.info("Skipping a frame as recommended")
+      return
     }
 
     if (this.peerJsSession.currentState() == SessionState.Running) {
