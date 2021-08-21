@@ -7,6 +7,8 @@ import { defaultInputSettings } from "../../../settings"
 import { defaultGameSettings, initialGameState } from "./boxes-game"
 import { BoxesGameView } from "./BoxesGameView"
 import { start } from "repl"
+import { pipe } from "fp-ts/function"
+import { either } from "fp-ts"
 
 const defaultPlayer1peerId = "rollback-boxes-01"
 const defaultPlayer2peerId = "rollback-boxes-02"
@@ -52,6 +54,20 @@ export const App = () => {
     })
   }
 
+  const networkStatsElem = pipe(
+    either.fromNullable(undefined)(game),
+    either.map(g => g.peerJsSession.networkStats(g.localPlayerIndex === 0 ? 1 : 0)),
+    either.fold(
+      _ => <div style={{ color: "white" }}>asd</div>,
+      networkStats => (
+        <div>
+          <pre style={{ color: "white" }}>{game?.framesToSkip}</pre>
+          <pre style={{ color: "white" }}>{JSON.stringify(networkStats, null, 2)}</pre>
+        </div>
+      )
+    )
+  )
+
   return (
     <>
       <div>
@@ -63,6 +79,8 @@ export const App = () => {
         {/*<input type="text" value={remotePeerId} onChange={ev => setRemotePeerId(ev.target.value)} />*/}
         <button onClick={joinGame}>Join Game</button>
       </div>
+
+      {networkStatsElem}
 
       {game ? <BoxesGameView gamestate={game.gamestate} /> : <div>No game</div>}
     </>
