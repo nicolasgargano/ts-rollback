@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rollback example</title>
+    <style>
+      html,
+      body {
+        background-color: black;
+        margin: 0;
+        overflow: hidden;
+      }
+
+      #app {
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+      // TODO: fixes peerjs bug https://github.com/peers/peerjs/issues/753
+      parcelRequire = undefined
+    </script>
+    <script type="module" src="./index.tsx"></script>
+  </body>
+</html>
