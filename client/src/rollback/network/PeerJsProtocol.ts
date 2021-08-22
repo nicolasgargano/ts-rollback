@@ -399,7 +399,7 @@ export class PeerJsProtocol {
     body.disconnectRequested = this.state === ProtocolState.Disconnected
     body.peerConnectionStatuses = connectionStatuses
 
-    this.queueMessage({ _type: "input", input: body })
+    if (body.bytes.length > 0) this.queueMessage({ _type: "input", input: body })
   }
 
   sendInputAck = () => {
