@@ -725,7 +725,7 @@ export class PeerJsSession {
         option.fold(
           () => {},
           endpoint => {
-            if (this.localConnectionStatus[playerIndex].disconnected) {
+            if (!this.localConnectionStatus[playerIndex].disconnected) {
               interval = Math.max(interval, endpoint.recommendFrameDelay(requireIdleInput))
             }
           }
