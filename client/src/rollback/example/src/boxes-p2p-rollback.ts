@@ -77,11 +77,6 @@ export class BoxesPeerJsGame {
   onStep = (input: Input) => {
     if (this.peerJsSession.currentState() == SessionState.Synchronizing) {
       this.peerJsSession.pollRemoteClients()
-
-      const events = this.peerJsSession.drainEvents()
-      for (const ev of events) {
-        if (ev._type === "waitRecommendation") this.framesToSkip = this.framesToSkip + ev.skipFrames
-      }
     }
 
     if (this.framesToSkip > 0) {
@@ -91,6 +86,17 @@ export class BoxesPeerJsGame {
     }
 
     if (this.peerJsSession.currentState() == SessionState.Running) {
+      const events = this.peerJsSession.drainEvents()
+
+      console.debug("events", events)
+
+      for (const ev of events) {
+        if (ev._type === "waitRecommendation") {
+          console.debug("Got wait recommendation")
+          this.framesToSkip = this.framesToSkip + ev.skipFrames
+        }
+      }
+
       pipe(
         this.peerJsSession.advanceFrame(this.localPlayerIndex, encodeInput(input)),
         either.fold(
