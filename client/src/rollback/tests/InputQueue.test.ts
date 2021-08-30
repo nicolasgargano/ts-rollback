@@ -76,37 +76,6 @@ describe("Input Queue", () => {
       assert.primitiveEqual(inputInQueue.frame, frame + frameDelay)
     })
   })
-  test("Predictions and then confirmed", () => {
-    const frameDelay = 2
-    const inputSize = 2
-
-    const queue: InputQueue = {
-      // exitPredictionCount: 0,
-      // lastAddedFrame: NULL_FRAME,
-      lastRequestedFrame: NULL_FRAME,
-      firstIncorrectFrame: NULL_FRAME,
-      prediction: new SerializedGameInput(NULL_FRAME, inputSize, new Uint8Array(inputSize)),
-      inputs: gameInputCircularBuffer.empty(inputSize, 32)
-    }
-    const confirmedEvery = 5
-
-    let confirmedFrameToAdd = frameDelay
-    let more: boolean = false
-
-    nonEmptyArray.range(0, 100).forEach(frame => {
-      if (frame % confirmedEvery === confirmedEvery - 1) {
-        for (let i = 0; i < (more ? confirmedEvery * 2 : confirmedEvery); i++) {
-          const input = new SerializedGameInput(confirmedFrameToAdd, 2, new Uint8Array(2))
-          inputQueue.addInputWithFrameDelay(frameDelay, input)(queue)
-          confirmedFrameToAdd++
-        }
-        more = true
-      }
-
-      const inputInQueue = inputQueue.confirmedOrPredicted(frame)(queue)
-      assert.primitiveEqual(inputInQueue.frame, frame)
-    })
-  })
   test("Predictions and then confirmed steps", () => {
     const frameDelay = 3
     const inputSize = 3
