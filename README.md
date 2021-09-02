@@ -1,3 +1,3 @@
 # Rollback boxes
 
-This is a work in progress port of GGPO style netcode.
+This is a barely working port of GGPO style netcode.
