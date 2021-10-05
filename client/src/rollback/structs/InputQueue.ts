@@ -58,7 +58,7 @@ export const confirmedOrPredicted =
 
       if (maybeConfirmedInput) {
         assert.primitiveEqual(maybeConfirmedInput.frame, requestedFrame)
-        console.debug(`[ inputQueue ] Requested frame ${requestedFrame} was returned as confirmed`)
+        // console.debug(`[ inputQueue ] Requested frame ${requestedFrame} was returned as confirmed`)
         return maybeConfirmedInput
       } else {
         const maybeCurrent = queue.inputs.currentFrameInput()
@@ -72,7 +72,7 @@ export const confirmedOrPredicted =
     const predictionToReturn = SerializedGameInput.clone(queue.prediction)
     predictionToReturn.frame = requestedFrame
     // queue.prediction.frame = requestedFrame
-    console.debug(`[ inputQueue ] Requested frame ${requestedFrame} was returned as prediction`)
+    // console.debug(`[ inputQueue ] Requested frame ${requestedFrame} was returned as prediction`)
     return predictionToReturn
   }
 
@@ -95,13 +95,13 @@ export const addInputByFrame =
         noIncorrectFrame(queue) && queue.prediction.frame === queue.lastRequestedFrame
       if (canCancelPrediction) {
         // queue.exitPredictionCount++
-        console.debug(
-          `Cancelling pred, pred ${queue.prediction.frame}, inputF ${inputToAdd.frame}, addF: ${frame}`
-        )
+        // console.debug(
+        //   `Cancelling pred, pred ${queue.prediction.frame}, inputF ${inputToAdd.frame}, addF: ${frame}`
+        // )
         queue.prediction.frame = NULL_FRAME
       } else {
         queue.prediction.frame = queue.prediction.frame + 1
-        console.debug(`Could not cancel prediction, ${queue.prediction.frame}`)
+        // console.debug(`Could not cancel prediction, ${queue.prediction.frame}`)
       }
 
       if (
@@ -110,7 +110,7 @@ export const addInputByFrame =
       )
         queue.firstIncorrectFrame = frame
     } else {
-      console.debug(`[ input queue ] was not predicting! ${frame}, ${queue.prediction.frame}`)
+      // console.debug(`[ input queue ] was not predicting! ${frame}, ${queue.prediction.frame}`)
     }
     // TODO ggrs checks if the length after inserting exceeds a max input q length,
     //  because our circular buffer just overwrites we may need

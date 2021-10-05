@@ -81,7 +81,7 @@ export class BoxesPeerJsGame {
 
     if (this.framesToSkip > 0) {
       this.framesToSkip--
-      console.info("Skipping a frame as recommended")
+      console.debug("Skipping a frame as recommended")
       return
     }
 

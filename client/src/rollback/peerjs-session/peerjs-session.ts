@@ -242,6 +242,7 @@ export class PeerJsSession {
       if (skipFrames > 0) {
         this.nextRecommendedSleep =
           this.syncLayer.currentFrame + this.settings.net.RECOMMENDATION_INTERVAL
+        console.debug(`[session] adding wait recommendation with ${skipFrames} skip frames`)
         this.eventQueue.push({ _type: "waitRecommendation", skipFrames: skipFrames })
       }
     }
@@ -783,7 +784,7 @@ export class PeerJsSession {
               currentRemoteFrame === NULL_FRAME || currentRemoteFrame + 1 === input.frame
             )
             // update our info
-            console.debug(`[update last frame] current: ${currentRemoteFrame}, new: ${input.frame}`)
+            // console.debug(`[update last frame] current: ${currentRemoteFrame}, new: ${input.frame}`)
             this.localConnectionStatus[playerIndex].lastFrame = input.frame
             // add the remote input
             this.syncLayer.addRemoteInput(0, playerIndex, input)

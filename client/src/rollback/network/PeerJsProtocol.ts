@@ -310,7 +310,6 @@ export class PeerJsProtocol {
         break
       }
     }
-    console.log("popped")
   }
 
   /*
@@ -334,9 +333,9 @@ export class PeerJsProtocol {
    */
 
   sendAllMessages = (socket: PeerJsSocket) => {
-    console.log(
-      `${socket.peer.id}, sending all messages, ${this.peerConnectionStatuses[0].lastFrame}`
-    )
+    // console.log(
+    //   `${socket.peer.id}, sending all messages, ${this.peerConnectionStatuses[0].lastFrame}`
+    // )
     if (this.state === ProtocolState.Shutdown) {
       this.sendQueue = []
       return
@@ -456,7 +455,7 @@ export class PeerJsProtocol {
   */
 
   handleMessage = (msg: Message) => {
-    console.log(`[${this.socket.peer.id}] handle msg: ${msg.body._type}`, msg)
+    // console.log(`[${this.socket.peer.id}] handle msg: ${msg.body._type}`, msg)
     // don't handle messages if shutdown
     if (this.state === ProtocolState.Shutdown) return
 

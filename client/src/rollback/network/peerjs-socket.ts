@@ -54,7 +54,7 @@ export class PeerJsSocket {
   }
 
   sendTo = (peerId: string, message: Message) => {
-    assert.defined(this.connections[peerId] !== undefined, `Connection does not exist ${peerId}`)
+    assert.defined(this.connections[peerId], `Connection does not exist ${peerId}`)
     message.header.sendCount = this.sendCount
     this.connections[peerId].send(message)
     // console.debug(`[socket] Sent ${message.body._type}`, message, this.inputLog)
