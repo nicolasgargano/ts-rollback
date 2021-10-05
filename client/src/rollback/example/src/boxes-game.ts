@@ -34,11 +34,11 @@ export type Input = {
 export const initialGameState: GameState = {
   step: 0,
   one: {
-    x: -10,
+    x: -3,
     y: 0
   },
   two: {
-    x: 10,
+    x: 3,
     y: 0
   }
 }
