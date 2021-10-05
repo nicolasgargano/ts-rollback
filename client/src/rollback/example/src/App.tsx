@@ -58,7 +58,7 @@ export const App = () => {
     either.fromNullable(undefined)(game),
     either.map(g => g.peerJsSession.networkStats(g.localPlayerIndex === 0 ? 1 : 0)),
     either.fold(
-      _ => <div style={{ color: "white" }}>asd</div>,
+      _ => <div style={{ color: "white" }} />,
       networkStats => (
         <div>
           <pre style={{ color: "white" }}>{game?.framesToSkip}</pre>
