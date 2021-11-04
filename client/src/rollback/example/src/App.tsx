@@ -19,6 +19,8 @@ export const App = () => {
   // const [ownPeerId, setOwnPeerId] = useState<string>(defaultPlayer1peerId)
   // const [remotePeerId, setRemotePeerId] = useState<string>("rollback-boxes-01")
 
+  const [peerId] = useState(new URLSearchParams(window.location.search).get("peerId"))
+
   const [game, setGame] = useState<BoxesPeerJsGame | undefined>(undefined)
   const [, forceRerender] = useReducer(x => x + 1, 0)
 
