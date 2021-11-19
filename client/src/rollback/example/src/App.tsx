@@ -92,7 +92,14 @@ export const App = () => {
     <>
       {ownId && !otherId && <PeerLink id={ownId} />}
       {networkStatsElem}
-      {game ? <BoxesGameView gamestate={game.gamestate} /> : <div>No game</div>}
+      {game ? (
+        <>
+          <div style={{ color: "white", fontSize: "1.5em" }}>WASD to move</div>
+          <BoxesGameView gamestate={game.gamestate} />
+        </>
+      ) : (
+        <div>No game</div>
+      )}
     </>
   )
 }
