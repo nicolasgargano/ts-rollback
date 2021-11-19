@@ -1,28 +1,25 @@
-import React, { useEffect, useReducer, useRef, useState } from "react"
-import Peer, { DataConnection } from "peerjs"
+import React, { FC, useEffect, useReducer, useState } from "react"
+import Peer from "peerjs"
 import { BoxesPeerJsGame } from "./boxes-p2p-rollback"
 import { useKeyDown } from "../../../hooks/useKeyDown"
 import { useInterval } from "../../../hooks/useInterval"
 import { defaultInputSettings } from "../../../settings"
 import { defaultGameSettings, initialGameState } from "./boxes-game"
 import { BoxesGameView } from "./BoxesGameView"
-import { start } from "repl"
 import { pipe } from "fp-ts/function"
 import { either } from "fp-ts"
+import { customAlphabet } from "nanoid"
 
-const defaultPlayer1peerId = "rollback-boxes-01"
-const defaultPlayer2peerId = "rollback-boxes-02"
+const nanoid = customAlphabet("1234567890abcdef", 10)
+const idPrefix = "ts-rollback"
+
+const otherIdQueryParam = "otherId"
 
 export const App = () => {
-  // TODO correct way of doing the render loop
-
-  // const [ownPeerId, setOwnPeerId] = useState<string>(defaultPlayer1peerId)
-  // const [remotePeerId, setRemotePeerId] = useState<string>("rollback-boxes-01")
-
-  const [peerId] = useState(new URLSearchParams(window.location.search).get("peerId"))
+  const [otherId] = useState(new URLSearchParams(window.location.search).get(otherIdQueryParam))
+  const [ownId, setOwnId] = useState(nanoid())
 
   const [game, setGame] = useState<BoxesPeerJsGame | undefined>(undefined)
-  const [, forceRerender] = useReducer(x => x + 1, 0)
 
   const inputSettings = defaultInputSettings
   const left = useKeyDown(inputSettings.left)
@@ -30,6 +27,8 @@ export const App = () => {
   const up = useKeyDown(inputSettings.up)
   const down = useKeyDown(inputSettings.down)
 
+  // TODO correct way of doing the render loop
+  const [, forceRerender] = useReducer(x => x + 1, 0)
   useInterval(tick => {
     if (game) {
       game.onStep({ left, right, up, down })
@@ -37,8 +36,22 @@ export const App = () => {
     }
   }, 1000 / 60)
 
+  useEffect(() => {
+    if (otherId === null) {
+      console.info("No host id")
+      startGame()
+    } else {
+      console.info("Got host id: ", otherId)
+      joinGame(otherId)
+    }
+  }, [])
+
   const startGame = async () => {
-    const ownPeer = await initPeer(defaultPlayer1peerId)
+    const ownId = nanoid()
+    const ownPeerId = idPrefix + ownId
+
+    const ownPeer = await initPeer(ownPeerId)
+    setOwnId(ownId)
 
     ownPeer.on("connection", conn => {
       conn.on("open", () => {
@@ -47,12 +60,17 @@ export const App = () => {
     })
   }
 
-  const joinGame = async () => {
-    const ownPeer = await initPeer(defaultPlayer2peerId)
+  const joinGame = async (otherId: string) => {
+    const otherPeerId = idPrefix + otherId
 
-    const conn = ownPeer.connect(defaultPlayer1peerId)
+    const ownId = nanoid()
+    const ownPeerId = idPrefix + ownId
+    const ownPeer = await initPeer(ownPeerId)
+
+    console.info("Connecting to peer: " + otherPeerId)
+    const conn = ownPeer.connect(otherPeerId)
     conn.on("open", () => {
-      setGame(createGame(ownPeer, defaultPlayer1peerId, 2))
+      setGame(createGame(ownPeer, otherPeerId, 2))
     })
   }
 
@@ -72,18 +90,8 @@ export const App = () => {
 
   return (
     <>
-      <div>
-        {/*<input type="text" value={ownPeerId} onChange={ev => setOwnPeerId(ev.target.value)} />*/}
-        <button onClick={startGame}>Create Game</button>
-      </div>
-
-      <div>
-        {/*<input type="text" value={remotePeerId} onChange={ev => setRemotePeerId(ev.target.value)} />*/}
-        <button onClick={joinGame}>Join Game</button>
-      </div>
-
+      {ownId && !otherId && <PeerLink id={ownId} />}
       {networkStatsElem}
-
       {game ? <BoxesGameView gamestate={game.gamestate} /> : <div>No game</div>}
     </>
   )
@@ -103,9 +111,8 @@ const createGame = (peer: Peer, remotePeerId: string, localPlayerNumber: number)
 
 // -- PEERJS
 
-const initPeer = (id: string): Promise<Peer> =>
+const initPeer = (id?: string): Promise<Peer> =>
   new Promise((resolve, reject) => {
-    console.info(`Attempting to create peer with id ${id}`)
     const peer = new Peer(id, {
       debug: 0
     })
@@ -116,6 +123,35 @@ const initPeer = (id: string): Promise<Peer> =>
     })
 
     peer.on("open", _ => {
+      console.info(`Created peer with id ${id}`)
       resolve(peer)
     })
   })
+
+const PeerLink: FC<{ id: string }> = ({ id }) => {
+  const [copied, setCopied] = useState(false)
+
+  return (
+    <div style={{ color: "white" }}>
+      <p>
+        Send this link to a friend or open a new window with it (make sure both are in view at the
+        same time)
+      </p>
+      <a
+        style={{ color: "white" }}
+        href={`${window.location.href}?${otherIdQueryParam}=${id}`}
+        target="_blank"
+      >
+        {`${window.location.href}?${otherIdQueryParam}=${id}`}
+      </a>
+      <button
+        onClick={() => {
+          const link = `${window.location.href}?${otherIdQueryParam}=${id}`
+          navigator.clipboard.writeText(link).then(() => setCopied(true))
+        }}
+      >
+        {copied ? "Copied" : "Copy"}
+      </button>
+    </div>
+  )
+}
